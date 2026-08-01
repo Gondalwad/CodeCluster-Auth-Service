@@ -1,12 +1,7 @@
 package com.codecluster.auth.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.*;
+
 import java.util.List;
 
 import java.time.OffsetDateTime;
@@ -17,7 +12,8 @@ import java.util.UUID;
 //import org.hibernate.annotations.JdbcType;
 //import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 import com.codecluster.auth.converter.UserStatusConverter;
-import jakarta.persistence.Convert;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "users")
@@ -102,6 +98,7 @@ public class User {
 
     @Id
     @Column(name = "user_id")
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID userId;
 
     @Column(name = "name")
@@ -121,7 +118,8 @@ public class User {
 //    @Column(name = "status")
 //    private UserStatus status;
 
-    @Convert(converter = UserStatusConverter.class)
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "status", nullable = false, columnDefinition = "user_status")
     private UserStatus status;
 

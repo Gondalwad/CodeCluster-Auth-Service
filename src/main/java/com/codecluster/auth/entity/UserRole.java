@@ -1,36 +1,40 @@
 package com.codecluster.auth.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
+
+import jakarta.persistence.*;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "user_roles")
 public class UserRole {
 
     @EmbeddedId
-    private UserRoleId id;
+    private UserRoleId id = new UserRoleId();
 
     @Column(name = "assigned_at")
     private OffsetDateTime assignedAt;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userId")
     @JoinColumn(name = "user_id")
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("roleId")
     @JoinColumn(name = "role_id")
     private Role role;
 
-    public UserRole() {
+    public UserRole() {}
+
+    public UserRole(User user, Role role, OffsetDateTime assignedAt) {
+        this.user = user;
+        this.role = role;
+        this.assignedAt = assignedAt;
     }
 
     public UserRoleId getId() {

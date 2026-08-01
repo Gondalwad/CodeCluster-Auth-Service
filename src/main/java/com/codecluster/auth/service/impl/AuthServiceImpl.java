@@ -2,6 +2,7 @@ package com.codecluster.auth.service.impl;
 
 import com.codecluster.auth.dto.request.RegisterRequest;
 import com.codecluster.auth.dto.response.AuthResponse;
+import com.codecluster.auth.exception.UsernameAlreadyExistsException;
 import com.codecluster.auth.repository.RoleRepository;
 import com.codecluster.auth.repository.UserRepository;
 import com.codecluster.auth.repository.UserRoleRepository;
@@ -15,6 +16,7 @@ import com.codecluster.auth.entity.User;
 import com.codecluster.auth.entity.UserStatus;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.codecluster.auth.entity.UserRole;
@@ -63,27 +65,21 @@ public class AuthServiceImpl implements AuthService {
             throw new EmailAlreadyExistsException("Email already registered");
         }
 
-        // Find role
-        Role role = roleRepository.findByRoleName(request.getRole())
-                .orElseThrow(() ->
-                        new RoleNotFoundException("Role not found"));
+        if(userRepository.existsByUsername(request.getUserName())){
+            throw new UsernameAlreadyExistsException("Username '"+request.getUserName()+"' already exists");
+        }
 
-        // Generate unique username
-        String username = generateUsername(
-                request.getFirstName(),
-                request.getLastName()
-        );
+
+        // Find role
+        Role role = roleRepository.findByRoleName("USER").get();
+
 
         //Create the User object
         User user = new User();
 
-        user.setUserId(UUID.randomUUID());
+        user.setName(request.getFirstName()+request.getLastName());
 
-        user.setName(
-                request.getFirstName() + " " + request.getLastName()
-        );
-
-        user.setUsername(username);
+        user.setUsername(request.getUserName());
 
         user.setEmail(request.getEmail());
 
@@ -91,31 +87,18 @@ public class AuthServiceImpl implements AuthService {
                 passwordEncoder.encode(request.getPassword())
         );
 
-        user.setStatus(UserStatus.ACTIVE);
+        user.setStatus(UserStatus.active);
 
         user.setCreatedAt(OffsetDateTime.now());
 
         user.setUpdatedAt(OffsetDateTime.now());
 
         //Save User
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
 
-        UserRole userRole = new UserRole();
+        /// saving userRole
+        userRoleRepository.save(new UserRole(savedUser, role, OffsetDateTime.now()));
 
-        UserRoleId userRoleId = new UserRoleId();
-
-        userRoleId.setUserId(user.getUserId());
-        userRoleId.setRoleId(role.getRoleId());
-
-        userRole.setId(userRoleId);
-
-        userRole.setUser(user);
-
-        userRole.setRole(role);
-
-        userRole.setAssignedAt(OffsetDateTime.now());
-
-        userRoleRepository.save(userRole);
 
         //generate access token and refresh token
         String accessToken =
@@ -137,7 +120,7 @@ public class AuthServiceImpl implements AuthService {
 
         userResponse.setRole(role.getRoleName());
 
-        userResponse.setActive(user.getStatus() == UserStatus.ACTIVE);
+        userResponse.setActive(user.getStatus() == UserStatus.active);
 
         userResponse.setCreatedAt(user.getCreatedAt());
 
@@ -225,7 +208,7 @@ public class AuthServiceImpl implements AuthService {
 
         userResponse.setRole(role.getRoleName());
 
-        userResponse.setActive(user.getStatus() == UserStatus.ACTIVE);
+        userResponse.setActive(user.getStatus() == UserStatus.active);
 
         userResponse.setCreatedAt(user.getCreatedAt());
 

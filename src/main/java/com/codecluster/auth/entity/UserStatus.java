@@ -1,8 +1,8 @@
 package com.codecluster.auth.entity;
 
 public enum UserStatus {
-    ACTIVE,
-    INACTIVE,
-    SUSPENDED,
-    PENDING_VERIFICATION
+    active,
+    inactive,
+    suspended,
+    pending_verification
 }

@@ -48,4 +48,17 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
+
+    /// This handles username already exists exception
+    @ExceptionHandler(UsernameAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleRoleNotFound(
+            UsernameAlreadyExistsException ex) {
+
+        ErrorResponse error = new ErrorResponse();
+        error.setTimestamp(OffsetDateTime.now());
+        error.setStatus(HttpStatus.CONFLICT.value());// username already exists conflict 409
+        error.setMessage(ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
 }

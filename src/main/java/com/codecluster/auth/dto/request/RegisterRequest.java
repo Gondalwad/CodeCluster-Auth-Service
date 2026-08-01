@@ -20,8 +20,11 @@ public class RegisterRequest {
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
 
-    @NotBlank(message = "Role is required")
-    private String role;
+    ///  role is not required we will assign it to user
+
+    @NotBlank(message = "username is required")
+    @Size(min=5, message = "user_name must be at least 5 chars")
+    private String userName;
 
     public RegisterRequest() {
     }
@@ -58,11 +61,11 @@ public class RegisterRequest {
         this.password = password;
     }
 
-    public String getRole() {
-        return role;
+    public String getUserName() {
+        return this.userName;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 }
