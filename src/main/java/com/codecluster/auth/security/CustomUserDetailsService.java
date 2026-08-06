@@ -2,10 +2,13 @@ package com.codecluster.auth.security;
 
 import com.codecluster.auth.entity.User;
 import com.codecluster.auth.repository.UserRepository;
+//import jakarta.transaction.Transactional;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
@@ -16,16 +19,17 @@ public class CustomUserDetailsService implements UserDetailsService {
         this.userRepository = userRepository;
     }
 
+
     @Override
     public UserDetails loadUserByUsername(String username)
             throws UsernameNotFoundException {
 
-        User user = userRepository
-                .findByUsername(username)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException(
-                                "User not found: " + username
-                        ));
+        User user = userRepository.findByEmail(username)
+                .orElseGet(() ->
+                        userRepository.findByUsernameWithRoles(username)
+                                .orElseThrow(() ->
+                                        new UsernameNotFoundException("User not found")));
+
 
         return new CustomUserDetails(user);
     }

@@ -29,6 +29,20 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import com.codecluster.auth.exception.UserNotFoundException;
 
+import com.codecluster.auth.dto.request.RefreshTokenRequest;
+import com.codecluster.auth.dto.response.RefreshTokenResponse;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import com.codecluster.auth.security.CustomUserDetails;
+
+import java.util.Date;
+import com.codecluster.auth.service.RedisService;
+
+import com.codecluster.auth.dto.request.TokenValidateRequest;
+import com.codecluster.auth.dto.response.TokenValidateResponse;
+
+import java.util.List;
+
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -40,6 +54,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final RedisService redisService;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -47,7 +62,8 @@ public class AuthServiceImpl implements AuthService {
             UserRoleRepository userRoleRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            AuthenticationManager authenticationManager) {
+            AuthenticationManager authenticationManager,
+            RedisService redisService) {
 
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -55,8 +71,11 @@ public class AuthServiceImpl implements AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
+        this.redisService = redisService;
     }
 
+
+    // to register
     @Override
     public AuthResponse register(RegisterRequest request) {
 
@@ -159,20 +178,63 @@ public class AuthServiceImpl implements AuthService {
         return username;
     }
 
+
+    //to login
+
     @Override
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
+
+        System.out.println("==================================");
+        System.out.println("Login Request");
+        System.out.println("Identifier = " + request.getUsernameOrEmail());
+        System.out.println("Password   = " + request.getPassword());
+        System.out.println("==================================");
+
+        /*
+        // authenticationManager.authenticate(
+//         new UsernamePasswordAuthenticationToken(
+//                 request.getUsernameOrEmail(),
+//                 request.getPassword()
+//         )
+// );
+*/
+
+        System.out.println("Login identifier: " + request.getUsernameOrEmail());
+
+       // authenticationManager.authenticate(
+       //         new UsernamePasswordAuthenticationToken(
+       //                 request.getUsernameOrEmail(),
+       //                 request.getPassword()
+       //         )
+       // );
+
+        System.out.println("Authentication successful");
+
 
         //load the user
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() ->
-                        new UserNotFoundException("User not found"));
+        String login = request.getUsernameOrEmail();
+
+        User user = userRepository.findByEmail(login)
+                .orElseGet(() ->
+                        userRepository.findByUsernameWithRoles(login)
+                                .orElseThrow(() ->
+                                        new UserNotFoundException("User not found")));
+
+        System.out.println("================================");
+        System.out.println("Database username : " + user.getUsername());
+        System.out.println("Database email    : " + user.getEmail());
+        System.out.println("Hash             : " + user.getPasswordHash());
+
+        boolean matches = passwordEncoder.matches(
+                request.getPassword(),
+                user.getPasswordHash()
+        );
+
+        System.out.println("Password matches = " + matches);
+        System.out.println("================================");
+
+
 
         Role role = user.getUserRoles()
                 .stream()
@@ -231,7 +293,139 @@ public class AuthServiceImpl implements AuthService {
 
     }
 
+//to refresh token
+    @Override
+    public RefreshTokenResponse refreshToken(
+            RefreshTokenRequest request) {
 
+        String refreshToken = request.getRefreshToken();
 
+        System.out.println("================================");
+        System.out.println("Refresh Token Received:");
+        System.out.println(refreshToken);
+        System.out.println("================================");
+
+        String username =
+                jwtService.extractUsername(refreshToken);
+
+        User user = userRepository.findByUsernameWithRoles(username)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User not found"));
+
+        UserDetails userDetails =
+                new CustomUserDetails(user);
+
+        if (!jwtService.isTokenValid(refreshToken, userDetails)) {
+            throw new RuntimeException("Invalid Refresh Token");
+        }
+
+        String newAccessToken =
+                jwtService.generateAccessToken(user.getUsername());
+
+        RefreshTokenResponse response =
+                new RefreshTokenResponse();
+
+        response.setAccessToken(newAccessToken);
+        response.setTokenType("Bearer");
+        response.setExpiresIn(900);
+
+        return response;
+    }
+
+    //logout
+
+    @Override
+    public void logout(String header) {
+
+        // Remove "Bearer "
+        String token = header.substring(7);
+
+        // Get token expiry
+        Date expiry = jwtService.extractExpiration(token);
+
+        // Calculate remaining validity
+        long remainingTime =
+                expiry.getTime() - System.currentTimeMillis();
+
+        // Store only if token is still valid
+        if (remainingTime > 0) {
+
+            redisService.blacklistToken(
+                    token,
+                    remainingTime
+            );
+        }
+    }
+
+    //swagger implementation
+
+    @Override
+    public TokenValidateResponse validateToken(
+            TokenValidateRequest request) {
+
+        String token = request.getAccessToken();
+
+        TokenValidateResponse response =
+                new TokenValidateResponse();
+
+        // Step 1 : Check Redis blacklist
+        if (redisService.isBlacklisted(token)) {
+
+            response.setValid(false);
+
+            return response;
+        }
+
+        try {
+
+            // Step 2 : Extract username
+            String username =
+                    jwtService.extractUsername(token);
+
+            // Step 3 : Find user
+            User user =
+                    userRepository.findByUsernameWithRoles(username)
+                            .orElseThrow(() ->
+                                    new UserNotFoundException("User not found"));
+
+            // Step 4 : Validate JWT
+            UserDetails userDetails =
+                    new CustomUserDetails(user);
+
+            if (!jwtService.isTokenValid(token, userDetails)) {
+
+                response.setValid(false);
+
+                return response;
+            }
+
+            // Step 5 : Read role
+            Role role =
+                    user.getUserRoles()
+                            .stream()
+                            .findFirst()
+                            .orElseThrow()
+                            .getRole();
+
+            response.setValid(true);
+
+            response.setUserId(user.getUserId());
+
+            response.setRole(role.getRoleName());
+
+            response.setPermissions(List.of());
+
+            return response;
+
+        }
+        catch (Exception e) {
+
+            response.setValid(false);
+
+            return response;
+
+        }
+
+    }
 
 }

@@ -1,24 +1,41 @@
 package com.codecluster.auth.dto.request;
 
+//import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public class LoginRequest {
 
-    @NotBlank(message = "Username is required")
-    private String username;
+
+    @NotBlank(message = "Username or Email is required")
+    @Schema(
+            description = "Username or Email",
+            example = "test999"
+    )
+    private String usernameOrEmail;
+
+    //private String usernameOrEmail;
+
+
 
     @NotBlank(message = "Password is required")
+    @Schema(
+            description = "Account Password",
+            example = "Password123"
+    )
     private String password;
+
+    //private String password;
 
     public LoginRequest() {
     }
 
-    public String getUsername() {
-        return username;
+    public String getUsernameOrEmail() {
+        return usernameOrEmail;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setUsernameOrEmail(String usernameOrEmail) {
+        this.usernameOrEmail = usernameOrEmail;
     }
 
     public String getPassword() {

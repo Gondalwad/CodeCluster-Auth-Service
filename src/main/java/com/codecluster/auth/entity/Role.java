@@ -53,6 +53,17 @@ public class Role {
         return userRoles;
     }
 
+//    @OneToMany(mappedBy = "role")
+//    private List<RolePermission> rolePermissions;
+
+//    public List<RolePermission> getRolePermissions() {
+//        return rolePermissions;
+//    }
+//
+//    public void setRolePermissions(List<RolePermission> rolePermissions) {
+//        this.rolePermissions = rolePermissions;
+//    }
+
     public void setUserRoles(List<UserRole> userRoles) {
         this.userRoles = userRoles;
     }
