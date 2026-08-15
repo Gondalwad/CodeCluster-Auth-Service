@@ -1,6 +1,6 @@
 package com.codecluster.auth.converter;
 
-import com.codecluster.auth.entity.UserStatus;
+import com.codecluster.auth.enums.UserStatus;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

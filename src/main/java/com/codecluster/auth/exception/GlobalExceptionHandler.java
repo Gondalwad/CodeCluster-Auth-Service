@@ -61,4 +61,14 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
+
+    /// This handles exception to invalid credentials
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException e){
+        ErrorResponse error = new ErrorResponse();
+        error.setTimestamp(OffsetDateTime.now());
+        error.setStatus(HttpStatus.BAD_REQUEST.value());
+        error.setMessage(e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
 }

@@ -1,23 +1,56 @@
 package com.codecluster.auth.entity;
 
+import com.codecluster.auth.enums.UserStatus;
 import jakarta.persistence.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
-//import org.hibernate.annotations.JdbcTypeCode;
-//import org.hibernate.type.SqlTypes;
-
-//import org.hibernate.annotations.JdbcType;
-//import org.hibernate.dialect.PostgreSQLEnumJdbcType;
-import com.codecluster.auth.converter.UserStatusConverter;
 import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "users")
 public class User {
+
+    @Id
+    @Column(name = "user_id")
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID userId;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "username")
+    private String username;
+
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "password_hash")
+    private String passwordHash;
+
+    //@Enumerated(EnumType.STRING)
+    //@JdbcType(PostgreSQLEnumJdbcType.class)
+//    @Column(name = "status")
+//    private UserStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "status", nullable = false, columnDefinition = "user_status")
+    private UserStatus status;
+
+    @Column(name = "created_at")
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserRole> userRoles = new ArrayList<>();
+
     //fields
     public User() {
     }
@@ -95,42 +128,6 @@ public class User {
         }
 
 //fields
-
-    @Id
-    @Column(name = "user_id")
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID userId;
-
-    @Column(name = "name")
-    private String name;
-
-    @Column(name = "username")
-    private String username;
-
-    @Column(name = "email")
-    private String email;
-
-    @Column(name = "password_hash")
-    private String passwordHash;
-
-    //@Enumerated(EnumType.STRING)
-    //@JdbcType(PostgreSQLEnumJdbcType.class)
-//    @Column(name = "status")
-//    private UserStatus status;
-
-    @Enumerated(EnumType.STRING)
-    @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(name = "status", nullable = false, columnDefinition = "user_status")
-    private UserStatus status;
-
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
-
-    @OneToMany(mappedBy = "user")
-    private List<UserRole> userRoles;
 
 
 }

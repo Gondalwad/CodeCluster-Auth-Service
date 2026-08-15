@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 public class LoginRequest {
 
     @NotBlank(message = "Username is required")
-    private String username;
+    private String preferredId;
 
     @NotBlank(message = "Password is required")
     private String password;
@@ -13,12 +13,12 @@ public class LoginRequest {
     public LoginRequest() {
     }
 
-    public String getUsername() {
-        return username;
+    public String getPreferredId() {
+        return preferredId;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setPreferredId(String preferredId) {
+        this.preferredId = preferredId;
     }
 
     public String getPassword() {

@@ -1,6 +1,5 @@
 package com.codecluster.auth.config;
 
-import com.codecluster.auth.security.JwtAuthenticationFilter;
 import com.codecluster.auth.security.CustomUserDetailsService;
 
 import org.springframework.context.annotation.Bean;
@@ -27,16 +26,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
     private final CustomUserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
     public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter,
             CustomUserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder) {
 
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -72,18 +69,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth ->
                         auth
                                 .requestMatchers(
-                                        "/auth/register",
-                                        "/auth/login",
-                                        "/swagger-ui/**",
-                                        "/v3/api-docs/**"
+                                        "api/v1/auth/register",
+                                        "api/v1/auth/login",
+                                        "api/v1/auth/validate"
                                 ).permitAll()
                                 .anyRequest().authenticated()
                 )
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+                .authenticationProvider(authenticationProvider());
 
         return http.build();
     }

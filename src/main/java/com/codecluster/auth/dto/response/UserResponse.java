@@ -9,15 +9,14 @@ public class UserResponse {
 
     private String email;
 
-    private String firstName;
-
-    private String lastName;
+    private String name;
 
     private String role;
 
     private boolean isActive;
 
     private OffsetDateTime createdAt;
+    private String username;
 
     public UserResponse() {
     }
@@ -38,20 +37,12 @@ public class UserResponse {
         this.email = email;
     }
 
-    public String getFirstName() {
-        return firstName;
+    public String getName() {
+        return name;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getRole() {
@@ -76,5 +67,13 @@ public class UserResponse {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public void setUsername(String username) {
+        this.username=username;
+    }
+
+    public String getUsername() {
+        return username;
     }
 }

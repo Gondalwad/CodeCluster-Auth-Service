@@ -1,9 +1,12 @@
 package com.codecluster.auth.controller;
 
+import com.codecluster.auth.dto.TokenValidationResponse;
 import com.codecluster.auth.dto.request.RegisterRequest;
 import com.codecluster.auth.dto.response.AuthResponse;
+import com.codecluster.auth.dto.response.UserResponse;
 import com.codecluster.auth.service.AuthService;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,7 +14,7 @@ import jakarta.validation.Valid;
 import com.codecluster.auth.dto.request.LoginRequest;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("api/v1/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -20,11 +23,16 @@ public class AuthController {
         this.authService = authService;
     }
 
+    /**
+     * This controller creates the account of user task included, hashing the password and save to db.
+     * @param request
+     * @return
+     */
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(
+    public ResponseEntity<UserResponse> register(
             @Valid @RequestBody RegisterRequest request) {
 
-        AuthResponse response = authService.register(request);
+        UserResponse response = authService.register(request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -41,5 +49,22 @@ public class AuthController {
         AuthResponse response = authService.login(request);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Extracts claims from jwt andreturns
+     * Input String Authorization : Containing JWT
+     * Returns JwtClaims TokenValidationResponse Object :
+     *     String userId;
+     *     String username;
+     *     String role;
+     *     String instituteId; - may be null
+     *     String instituteRole; - may be null
+     */
+    @PostMapping("/validate")
+    public ResponseEntity<TokenValidationResponse> validateToken(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+
+        return ResponseEntity.ok(authService.validateToken(authorization));
     }
 }

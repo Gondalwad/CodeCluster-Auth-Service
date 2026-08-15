@@ -1,4 +1,4 @@
-package com.codecluster.auth.entity;
+package com.codecluster.auth.enums;
 
 public enum UserStatus {
     active,

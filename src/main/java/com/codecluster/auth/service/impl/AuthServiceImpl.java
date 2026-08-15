@@ -1,33 +1,26 @@
 package com.codecluster.auth.service.impl;
 
+import com.codecluster.auth.dto.GenerateJwtDto;
+import com.codecluster.auth.dto.TokenValidationResponse;
 import com.codecluster.auth.dto.request.RegisterRequest;
 import com.codecluster.auth.dto.response.AuthResponse;
-import com.codecluster.auth.exception.UsernameAlreadyExistsException;
+import com.codecluster.auth.entity.*;
+import com.codecluster.auth.enums.UserStatus;
+import com.codecluster.auth.exception.*;
+import com.codecluster.auth.repository.InstituteMembersRepo;
 import com.codecluster.auth.repository.RoleRepository;
 import com.codecluster.auth.repository.UserRepository;
-import com.codecluster.auth.repository.UserRoleRepository;
 import com.codecluster.auth.security.JwtService;
 import com.codecluster.auth.service.AuthService;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.codecluster.auth.entity.Role;
-import com.codecluster.auth.entity.User;
-import com.codecluster.auth.entity.UserStatus;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
-import com.codecluster.auth.entity.UserRole;
-import com.codecluster.auth.entity.UserRoleId;
 import com.codecluster.auth.dto.response.UserResponse;
-import com.codecluster.auth.exception.EmailAlreadyExistsException;
-import com.codecluster.auth.exception.RoleNotFoundException;
 import com.codecluster.auth.dto.request.LoginRequest;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import com.codecluster.auth.exception.UserNotFoundException;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -36,29 +29,26 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final AuthenticationManager authenticationManager;
+    private final InstituteMembersRepo instituteMembersRepo;
 
     public AuthServiceImpl(
             UserRepository userRepository,
             RoleRepository roleRepository,
-            UserRoleRepository userRoleRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            AuthenticationManager authenticationManager) {
+            InstituteMembersRepo instituteMembersRepo) {
 
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
-        this.userRoleRepository = userRoleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.authenticationManager = authenticationManager;
+        this.instituteMembersRepo = instituteMembersRepo;
     }
 
     @Override
-    public AuthResponse register(RegisterRequest request) {
+    public UserResponse register(RegisterRequest request) {
 
         // Check if email is already registered
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -71,167 +61,147 @@ public class AuthServiceImpl implements AuthService {
 
 
         // Find role
-        Role role = roleRepository.findByRoleName("USER").get();
-
+        Optional<Role> role = roleRepository.findByRoleName("USER");
+        if(role.isEmpty()){
+            throw new RoleNotFoundException("Unable to fetch role, Try again later!");
+        }
 
         //Create the User object
         User user = new User();
-
-        user.setName(request.getFirstName()+request.getLastName());
-
+        user.setName(request.getFirstName()+" "+request.getLastName());
         user.setUsername(request.getUserName());
-
         user.setEmail(request.getEmail());
-
+        user.setCreatedAt(OffsetDateTime.now());
         user.setPasswordHash(
                 passwordEncoder.encode(request.getPassword())
         );
-
         user.setStatus(UserStatus.active);
-
-        user.setCreatedAt(OffsetDateTime.now());
-
         user.setUpdatedAt(OffsetDateTime.now());
 
+        UserRole userRole = new UserRole();
+        userRole.setRole(role.get());
+        userRole.setUser(user);
+        userRole.setAssignedAt(OffsetDateTime.now());
+
+        user.getUserRoles().add(userRole);
         //Save User
         User savedUser = userRepository.save(user);
-
+        if(savedUser.getUserId() == null){
+            throw new RuntimeException("Unable to save User, Try again later!");
+        }
         /// saving userRole
-        userRoleRepository.save(new UserRole(savedUser, role, OffsetDateTime.now()));
-
-
-        //generate access token and refresh token
-        String accessToken =
-                jwtService.generateAccessToken(user.getUsername());
-
-        String refreshToken =
-                jwtService.generateRefreshToken(user.getUsername());
-
         //creating the response object
         UserResponse userResponse = new UserResponse();
+        userResponse.setUsername(savedUser.getUsername());
+        userResponse.setId(savedUser.getUserId());
+        userResponse.setEmail(savedUser.getEmail());
+        userResponse.setName(savedUser.getName());
+        userResponse.setRole(savedUser.getUserRoles().getFirst().getRole().getRoleName());
+        userResponse.setActive(savedUser.getStatus() == UserStatus.active);
+        userResponse.setCreatedAt(savedUser.getCreatedAt());
 
-        userResponse.setId(user.getUserId());
-
-        userResponse.setEmail(user.getEmail());
-
-        userResponse.setFirstName(request.getFirstName());
-
-        userResponse.setLastName(request.getLastName());
-
-        userResponse.setRole(role.getRoleName());
-
-        userResponse.setActive(user.getStatus() == UserStatus.active);
-
-        userResponse.setCreatedAt(user.getCreatedAt());
-
-        //Build AuthResponse
-        AuthResponse response = new AuthResponse();
-
-        response.setAccessToken(accessToken);
-
-        response.setRefreshToken(refreshToken);
-
-        response.setTokenType("Bearer");
-
-        response.setExpiresIn(900);
-
-        response.setUser(userResponse);
-
-        return response;
+        return userResponse;
 
 
     }
 
-    private String generateUsername(String firstName, String lastName) {
-
-        String baseUsername = (firstName + "." + lastName)
-                .toLowerCase()
-                .replaceAll("\\s+", "");
-
-        String username = baseUsername;
-        int counter = 1;
-
-        while (userRepository.existsByUsername(username)) {
-            username = baseUsername + counter;
-            counter++;
-        }
-
-        return username;
-    }
-
+    /**
+     * checks username and password
+     */
     @Override
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
-
-        //load the user
-
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() ->
-                        new UserNotFoundException("User not found"));
-
-        Role role = user.getUserRoles()
-                .stream()
-                .findFirst()
-                .orElseThrow(() ->
-                        new RuntimeException("User has no role"))
-                .getRole();
-
+        User user = getUserByUsernameOrPassword(request.getPreferredId());
+        System.out.println(user.getUsername());
+        ///  check user password
+        if(!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())){
+            throw new InvalidCredentialsException("Invalid Username Or Password");
+        }
+        ///  gets user Role
+        Role role = user.getUserRoles().getFirst().getRole();
         //generate JWT token
+        //forming dto to pass to jwtService inorder to generate token
+        GenerateJwtDto jwtDto = new GenerateJwtDto();
+        jwtDto.setUserId(user.getUserId().toString());
+        jwtDto.setUsername(user.getUsername());
+        jwtDto.setUserRole(role.getRoleName());
+        Optional<InstituteMember> instituteMember = instituteMembersRepo.findByUser(user);
+        if(instituteMember.isPresent()){
+            jwtDto.setInstituteId(instituteMember.get().getInstitute().getId().toString());
+            jwtDto.setInstituteRole(instituteMember.get().getMemberRole().toString());
+        }
 
         String accessToken =
-                jwtService.generateAccessToken(user.getUsername());
-
-        String refreshToken =
-                jwtService.generateRefreshToken(user.getUsername());
-
+                jwtService.generateAccessToken(jwtDto);
 
         //building UserResponse
 
-        UserResponse userResponse = new UserResponse();
-
-        userResponse.setId(user.getUserId());
-
-        userResponse.setEmail(user.getEmail());
-
-        String[] nameParts = user.getName().split(" ", 2);
-
-        userResponse.setFirstName(nameParts[0]);
-
-        userResponse.setLastName(
-                nameParts.length > 1 ? nameParts[1] : ""
-        );
-
-        userResponse.setRole(role.getRoleName());
-
-        userResponse.setActive(user.getStatus() == UserStatus.active);
-
-        userResponse.setCreatedAt(user.getCreatedAt());
-
-        //Build AuthResponse
-
-        AuthResponse response = new AuthResponse();
-
-        response.setAccessToken(accessToken);
-
-        response.setRefreshToken(refreshToken);
-
-        response.setTokenType("Bearer");
-
-        response.setExpiresIn(900);
-
-        response.setUser(userResponse);
-
-        return response;
+       return getAuthResponse(user, accessToken);
 
 
     }
 
+    /** Extracts claims from jwt and returns
+     * Input String Authorization : Containing JWT
+     * Returns JwtClaims TokenValidationResponse Object :
+     *     String userId;
+     *     String username;
+     *     String role;
+     *     String instituteId; - may be null
+     *     String instituteRole; - may be null
+     */
+    @Override
+    public TokenValidationResponse validateToken(String authorization) {
 
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw new InvalidCredentialsException("Missing or invalid Authorization header");
+        }
+
+        String token = authorization.substring(7);
+
+        if (!jwtService.validateToken(token)) {
+            throw new InvalidCredentialsException("Invalid or expired token");
+        }
+
+        GenerateJwtDto claims = jwtService.extractClaims(token);
+
+        TokenValidationResponse response = new TokenValidationResponse();
+        response.setUserId(claims.getUserId());
+        response.setUsername(claims.getUsername());
+        response.setRole(claims.getUserRole());
+        response.setInstituteId(claims.getInstituteId());
+        response.setInstituteRole(claims.getInstituteRole());
+
+        return response;
+    }
+
+    ///  Helper method to generate AuthResponse
+    private static AuthResponse getAuthResponse(User user, String accessToken) {
+        UserResponse userResponse = new UserResponse();
+        userResponse.setId(user.getUserId());
+        userResponse.setEmail(user.getEmail());
+        userResponse.setName(user.getName());
+        userResponse.setActive(user.getStatus() == UserStatus.active);
+        userResponse.setRole(user.getUserRoles().getFirst().getRole().getRoleName());
+        userResponse.setUsername(user.getUsername());
+        userResponse.setCreatedAt(user.getCreatedAt());
+        //Build AuthResponse
+
+        AuthResponse response = new AuthResponse();
+        response.setAccessToken(accessToken);
+        response.setTokenType("Bearer");
+        response.setExpiresIn(900);
+        response.setUser(userResponse);
+        return response;
+    }
+
+    ///  Private method to get user by username or email
+    private User getUserByUsernameOrPassword(String preferredId) {
+        if(preferredId.contains("@")){
+            return userRepository.findUsersByEmail(preferredId).orElseThrow(()->new UserNotFoundException("Email not registered!"));
+        }
+        return userRepository.findUserByUsername(preferredId).orElseThrow(()->new UserNotFoundException("User Not Found!"));
+
+    }
 
 
 }

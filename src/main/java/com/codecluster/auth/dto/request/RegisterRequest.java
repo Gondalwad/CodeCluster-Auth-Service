@@ -2,6 +2,7 @@ package com.codecluster.auth.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
@@ -22,9 +23,14 @@ public class RegisterRequest {
 
     ///  role is not required we will assign it to user
 
-    @NotBlank(message = "username is required")
-    @Size(min=5, message = "user_name must be at least 5 chars")
+    @NotBlank(message = "Username is required")
+    @Size(min = 5, message = "Username must be at least 5 characters")
+    @Pattern(
+            regexp = "^[a-zA-Z0-9._]+$",
+            message = "Username can contain only letters, numbers, dots, and underscores"
+    )
     private String userName;
+
 
     public RegisterRequest() {
     }

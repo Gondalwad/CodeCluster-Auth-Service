@@ -1,16 +1,16 @@
 package com.codecluster.auth.security;
 
+import com.codecluster.auth.dto.GenerateJwtDto;
+import io.jsonwebtoken.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
 
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 
 import java.util.Date;
-import io.jsonwebtoken.Claims;
+
 import io.jsonwebtoken.Jwts;
 
 import java.util.function.Function;
@@ -35,7 +35,7 @@ public class JwtService {
         );
     }
 
-    public String generateAccessToken(String username) {
+    public String generateAccessToken(GenerateJwtDto dto) {
 
         Date now = new Date();
 
@@ -43,10 +43,21 @@ public class JwtService {
                 now.getTime() + accessTokenExpiration
         );
 
-        return Jwts.builder()
-                .subject(username)
+
+        JwtBuilder builder = Jwts.builder()
+                .subject(dto.getUsername())
+                .claim("userId", dto.getUserId())
+                .claim("userRole", dto.getUserRole())
                 .issuedAt(now)
-                .expiration(expiryDate)
+                .expiration(expiryDate);
+// Conditionally add optional claims only if they are not null
+        if (dto.getInstituteId() != null) {
+            builder.claim("instituteId", dto.getInstituteId());
+        }
+        if (dto.getInstituteRole() != null) {
+            builder.claim("instituteRole", dto.getInstituteRole());
+        }
+        return builder
                 .signWith(getSigningKey())
                 .compact();
     }
@@ -67,7 +78,7 @@ public class JwtService {
                 .compact();
     }
 
-    private Claims extractAllClaims(String token) {
+    public Claims extractAllClaims(String token) {
 
         return Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -100,12 +111,33 @@ public class JwtService {
 
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
+    public boolean validateToken(String token) {
 
-        String username = extractUsername(token);
+        try {
 
-        return username.equals(userDetails.getUsername())
-                && !isTokenExpired(token);
+            return !isTokenExpired(token);
+
+        } catch (JwtException | IllegalArgumentException ex) {
+
+            return false;
+
+        }
+
+    }
+
+    public GenerateJwtDto extractClaims(String token) {
+
+        Claims claims = extractAllClaims(token);
+
+        GenerateJwtDto dto = new GenerateJwtDto();
+
+        dto.setUsername(claims.getSubject());
+        dto.setUserId(claims.get("userId", String.class));
+        dto.setUserRole(claims.get("userRole", String.class));
+        dto.setInstituteId(claims.get("instituteId", String.class));
+        dto.setInstituteRole(claims.get("instituteRole", String.class));
+
+        return dto;
 
     }
 
